@@ -28,8 +28,16 @@ const client = new MongoClient(uri, {
 async function run() {
   const database = client.db("PharmacyDb");
   const productCollection = database.collection("product");
+  const categoryCollection = database.collection("category");
   app.get('/products', async(req,res)=>{
-    const result = await productCollection.find().toArray()
+    const category = req.query.category
+    let query = {}
+    if(category) query = {category}
+    const result = await productCollection.find(query).toArray()
+    res.send(result)
+  })
+  app.get('/category', async(req,res)=>{
+    const result = await categoryCollection.find().toArray()
     res.send(result)
   })
   try {
