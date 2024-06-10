@@ -1,18 +1,19 @@
-const express = require('express')
-const cors = require('cors')
-const jwt = require('jsonwebtoken')
+const express = require('express');
+const cors = require('cors');
+const jwt = require('jsonwebtoken');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
-require('dotenv').config()
-const port = process.env.PORT || 5000
+require('dotenv').config();
+const port = process.env.PORT || 5000;
+
 const corsOption = {
-    origin:['http://localhost:5173'],
+    origin: ['http://localhost:5173'],
     credentials: true,
     optionSuccessStatus: 200,
-}
-const app = express()
-app.use(cors(corsOption))
-app.use(express.json())
-// varSWDbIN8UUvqj3
+};
+
+const app = express();
+app.use(cors(corsOption));
+app.use(express.json());
 
 const uri = `mongodb+srv://${process.env.DB_user}:${process.env.DB_pass}@cluster0.zuwbcyf.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
@@ -25,38 +26,69 @@ const client = new MongoClient(uri, {
   }
 });
 
+let productCollection;
+let categoryCollection;
+let cartCollection;
+
 async function run() {
-  const database = client.db("PharmacyDb");
-  const productCollection = database.collection("product");
-  const categoryCollection = database.collection("category");
-  app.get('/products', async(req,res)=>{
-    const category = req.query.category
-    let query = {}
-    if(category) query = {category}
-    const result = await productCollection.find(query).toArray()
-    res.send(result)
-  })
-  app.get('/category', async(req,res)=>{
-    const result = await categoryCollection.find().toArray()
-    res.send(result)
-  })
   try {
-    // Connect the client to the server	(optional starting in v4.7)
-    // await client.connect();
+    await client.connect();
+    const database = client.db("PharmacyDb");
+    productCollection = database.collection("product");
+    categoryCollection = database.collection("category");
+    cartCollection = database.collection("cart");
+
+    app.get('/products', async (req, res) => {
+      const category = req.query.category;
+      let query = {};
+      if (category) query = { category };
+      const result = await productCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    app.get('/category', async (req, res) => {
+      const result = await categoryCollection.find().toArray();
+      res.send(result);
+    });
+
+    app.post('/carts', async (req, res) => {
+      const { email, name, owner, price, company,menu_id } = req.body;
+      const query = { menu_id: menu_id };
+      const existingItem = await cartCollection.findOne(query);
+  
+      if (existingItem) {
+          // If item exists, increase the quantity
+          const updateResult = await cartCollection.updateOne(query, { $inc: { quantity: 1 } });
+          res.send(updateResult);
+      } else {
+          // If item does not exist, add it with quantity 1
+          const newItem = req.body;
+          const insertResult = await cartCollection.insertOne(newItem);
+          res.send(insertResult);
+      }
+  });
+    app.get('/cart',async(req,res)=>{
+      const email = req.query.email
+      console.log(email)
+      const query = {usercart: email}
+      const result = await cartCollection.find(query).toArray()
+      res.send(result)
+    })
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
-  } finally {
-    // Ensures that the client will close when you finish/error
-    // await client.close();
+
+  } catch (error) {
+    console.error("Error connecting to MongoDB", error);
   }
 }
+
 run().catch(console.dir);
 
-app.get('/',(req,res)=>{
-    res.send("Vaaiya tomar server medicine kiner jonno ready")
-})
+app.get('/', (req, res) => {
+  res.send("Vaaiya tomar server medicine kiner jonno ready");
+});
 
-app.listen(port, ()=>{
-    console.log(`Server is running on port ${port}`)
-})
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
+});
