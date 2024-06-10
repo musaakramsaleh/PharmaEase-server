@@ -74,6 +74,22 @@ async function run() {
       const result = await cartCollection.find(query).toArray()
       res.send(result)
     })
+    app.patch('/cart/:id', async (req, res) => {
+      const id = req.params.id;
+      const { quantity } = req.body;
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+          $set: { quantity: quantity },
+      };
+      const result = await cartCollection.updateOne(filter, updateDoc);
+      res.send(result);
+  });
+  app.delete('/cart/:id', async (req, res) => {
+    const email = req.params.id; // Assuming user email is passed in the query
+    const filter = { _id: new ObjectId(email) };
+    const result = await cartCollection.deleteOne(filter);
+    res.send(result);
+});
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
