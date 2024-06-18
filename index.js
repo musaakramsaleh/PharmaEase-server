@@ -4,7 +4,7 @@ const jwt = require('jsonwebtoken');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
 const port = process.env.PORT || 5000;
-
+const stripe = require("stripe")(process.env.STRIPE_KEY);
 const corsOption = {
     origin: ['http://localhost:5173'],
     credentials: true,
@@ -34,10 +34,46 @@ async function run() {
   try {
     await client.connect();
     const database = client.db("PharmacyDb");
+    userCollection = database.collection("users");
     productCollection = database.collection("product");
     categoryCollection = database.collection("category");
     cartCollection = database.collection("cart");
 
+
+    app.post('/user',async(req,res)=>{
+      const user = req.body
+      const result = userCollection.insertOne(user);
+      const query = {email:user.email}
+      const existingUser = userCollection.findOne(query)
+      if(existingUser){
+        return res.send({message:'User is there already',insertedID:null})
+      }
+      res.send(result)
+    })
+    app.post('/product', async (req, res) => {
+      const product = req.body;
+  
+      try {
+          // Insert the product into the products collection
+          const result = await productCollection.insertOne(product);
+  
+          // Update or create the category in the categories collection
+          const existingCategory = await categoryCollection.findOne({ category: product.category });
+  
+          if (existingCategory) {
+              // Increment the quantity by 1 if category exists
+              await categoryCollection.updateOne(
+                  { _id: existingCategory._id },
+                  { $inc: { quantity: 1 } }
+              );
+          } 
+          res.send(result)
+      } catch (error) {
+          console.error('Error adding product:', error);
+          res.status(500).json({ error: 'Internal server error' });
+      }
+  });
+  
     app.get('/products', async (req, res) => {
       const category = req.query.category;
       let query = {};
@@ -45,7 +81,30 @@ async function run() {
       const result = await productCollection.find(query).toArray();
       res.send(result);
     });
+    app.get('/product/:email', async (req, res) => {
+      const email = req.params.email;
+      console.log("Request received for email:", email);
+      const query = { 'owner.email': email };
+      console.log("Executing query:", query);
+      const result = await productCollection.find(query).toArray();
+      console.log("Query result:", result)
+      res.send(result)      
+  });
+  app.put('/product/:id', async (req, res) => {
+    const id = req.params.id;
+    const updateData = req.body;
 
+    try {
+        const result = await productCollection.updateOne(
+            { _id: new ObjectId(id) },
+            { $set: updateData }
+        );
+        res.status(200).json({ message: 'Product updated successfully' });
+    } catch (error) {
+        console.error('Error updating product:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
     app.get('/category', async (req, res) => {
       const result = await categoryCollection.find().toArray();
       res.send(result);
@@ -69,7 +128,6 @@ async function run() {
   });
     app.get('/cart',async(req,res)=>{
       const email = req.query.email
-      console.log(email)
       const query = {usercart: email}
       const result = await cartCollection.find(query).toArray()
       res.send(result)
@@ -90,6 +148,25 @@ async function run() {
     const result = await cartCollection.deleteOne(filter);
     res.send(result);
 });
+app.delete('/carts', async (req, res) => {
+  const email = req.query.email; // Assuming user email is passed in the query
+  const filter = { usercart: email };
+  const result = await cartCollection.deleteMany(filter);
+  res.send(result);
+});
+app.post('/create-payment-intent',async(req,res)=>{
+  const {price} = req.body
+  const amount = parseInt(price * 100)
+
+  const paymentIntent = await stripe.paymentIntents.create({
+    amount: amount,
+    currency: 'usd',
+    payment_method_types: ['card']
+  })
+  res.send({
+    clientSecret: paymentIntent.client_secret
+  })
+})
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
