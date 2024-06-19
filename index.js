@@ -26,18 +26,16 @@ const client = new MongoClient(uri, {
   }
 });
 
-let productCollection;
-let categoryCollection;
-let cartCollection;
+
 
 async function run() {
   try {
     await client.connect();
     const database = client.db("PharmacyDb");
-    userCollection = database.collection("users");
-    productCollection = database.collection("product");
-    categoryCollection = database.collection("category");
-    cartCollection = database.collection("cart");
+    const userCollection = database.collection("users");
+    const productCollection = database.collection("product");
+    const categoryCollection = database.collection("category");
+    const cartCollection = database.collection("cart");
 
 
     app.post('/user',async(req,res)=>{
