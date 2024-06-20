@@ -72,6 +72,16 @@ async function run() {
       const result = await userCollection.insertOne(user);
       res.send(result)
     })
+    app.get('/all-medicine',async(req,res)=>{
+      const size = parseInt(req.query.size)
+      const page = parseInt(req.query.page) -1 
+      const search = req.query.search
+       let query = { FoodName: { $regex: search, $options: 'i' } }
+      
+      const result = await userCollection.find(query).skip(page*size).limit(size).toArray()
+      res.send(result)
+      
+    })
     app.post('/product', async (req, res) => {
       const product = req.body;
   
@@ -129,6 +139,46 @@ async function run() {
       const result = await categoryCollection.find().toArray();
       res.send(result);
     });
+    app.get('/products/:category', async (req, res) => {
+      const category = req.params.category;
+      const page = parseInt(req.query.page);
+      const size = parseInt(req.query.size);
+      const search = req.query.search || '';
+      const sortDirection = req.query.sort === 'desc' ? -1 : req.query.sort === 'asc' ? 1 : null;
+  
+      // Calculate skip and limit based on page and size
+      const skip = (page - 1) * size;
+      const limit = size;
+  
+      try {
+          const query = {
+              category: category,
+              $or: [
+                  { itemName: { $regex: search, $options: 'i' } },
+                  { itemGenericName: { $regex: search, $options: 'i' } },
+                  { company: { $regex: search, $options: 'i' } }
+              ]
+          };
+  
+          let sortObject = null;
+          if (sortDirection !== null) {
+              sortObject = { perUnitPrice: sortDirection };
+          }
+  
+          const result = await productCollection
+              .find(query)
+              .sort(sortObject)
+              .skip(skip)
+              .limit(limit)
+              .toArray();
+  
+          const count = await productCollection.countDocuments(query);
+          res.send({ medicines: result, count });
+      } catch (error) {
+          console.error('Error fetching products:', error);
+          res.status(500).send('Error fetching products');
+      }
+  });
 
     app.post('/carts', async (req, res) => {
       const { email, name, owner, price, company,menu_id } = req.body;
