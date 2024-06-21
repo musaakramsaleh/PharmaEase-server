@@ -280,10 +280,22 @@ app.post('/payments',async (req,res)=>{
 })
 app.get('/payments/:transactionid',async (req,res)=>{
   const transactionid = req.params.transactionid
-  console.log(transactionid)
   const filter = { transaction: transactionid };
     const result = await paymentCollection.find(filter).toArray();
     res.send(result);
+})
+app.get('/payments',verifyToken,async (req,res)=>{
+    const result = await paymentCollection.find().toArray();
+    res.send(result);
+app.patch('/payments/:id', async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+          $set: { status: "paid" },
+      };
+      const result = await paymentCollection.updateOne(filter, updateDoc);
+      res.send(result);
+  });
 })
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
