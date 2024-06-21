@@ -36,6 +36,7 @@ async function run() {
     const productCollection = database.collection("product");
     const categoryCollection = database.collection("category");
     const cartCollection = database.collection("cart");
+    const paymentCollection = database.collection("payment");
 
     app.post('/jwt',async(req,res)=>{
       const user = req.body
@@ -82,7 +83,7 @@ async function run() {
       res.send(result)
       
     })
-    app.post('/product', async (req, res) => {
+    app.post('/product',verifyToken, async (req, res) => {
       const product = req.body;
   
       try {
@@ -107,20 +108,52 @@ async function run() {
   });
   
     app.get('/products', async (req, res) => {
-      const category = req.query.category;
-      let query = {};
-      if (category) query = { category };
-      const result = await productCollection.find(query).toArray();
-      res.send(result);
+      const category = req.params.category;
+      const page = parseInt(req.query.page);
+      const size = parseInt(req.query.size);
+      const search = req.query.search || '';
+      const sortDirection = req.query.sort === 'desc' ? -1 : req.query.sort === 'asc' ? 1 : null;
+  
+      // Calculate skip and limit based on page and size
+      const skip = (page - 1) * size;
+      const limit = size;
+  
+      try {
+          const query = {
+              $or: [
+                  { itemName: { $regex: search, $options: 'i' } },
+                  { itemGenericName: { $regex: search, $options: 'i' } },
+                  { company: { $regex: search, $options: 'i' } }
+              ]
+          };
+  
+          let sortObject = null;
+          if (sortDirection !== null) {
+              sortObject = { perUnitPrice: sortDirection };
+          }
+  
+          const result = await productCollection
+              .find(query)
+              .sort(sortObject)
+              .skip(skip)
+              .limit(limit)
+              .toArray();
+  
+          const count = await productCollection.countDocuments(query);
+          res.send({ medicines: result, count });
+      } catch (error) {
+          console.error('Error fetching products:', error);
+          res.status(500).send('Error fetching products');
+      }
     });
-    app.get('/product/:email', async (req, res) => {
+    app.get('/product/:email',verifyToken, async (req, res) => {
       const email = req.params.email;
       const query = { 'owner.email': email };
       console.log("Executing query:", query);
       const result = await productCollection.find(query).toArray();
       res.send(result)      
   });
-  app.put('/product/:id', async (req, res) => {
+  app.put('/product/:id',verifyToken, async (req, res) => {
     const id = req.params.id;
     const updateData = req.body;
 
@@ -236,6 +269,21 @@ app.post('/create-payment-intent',async(req,res)=>{
   res.send({
     clientSecret: paymentIntent.client_secret
   })
+})
+app.post('/payments',async (req,res)=>{
+  const payment = req.body
+  const result = paymentCollection.insertOne(payment)
+  const email = req.body.email; 
+  const filter = { usercart: email };
+  const clear = await cartCollection.deleteMany(filter)
+  res.send({result,clear})
+})
+app.get('/payments/:transactionid',async (req,res)=>{
+  const transactionid = req.params.transactionid
+  console.log(transactionid)
+  const filter = { transaction: transactionid };
+    const result = await paymentCollection.find(filter).toArray();
+    res.send(result);
 })
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
