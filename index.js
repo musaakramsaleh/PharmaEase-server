@@ -63,6 +63,32 @@ async function run() {
       const result = await userCollection.find().toArray()
       res.send(result)
     })
+    app.get('/users/admin/:email',verifyToken,async (req,res)=>{
+      const email = req.params.email
+      if(email !== req.decoded.email){
+        return res.status(403).send({message:'unauthorized access'})
+      }
+      const query = {email: email}
+      const user = await userCollection.findOne(query)
+      let admin = false;
+      if (user) {
+        admin = user?.role === 'admin';
+      }
+      res.send({admin})
+    })
+    app.get('/users/seller/:email',verifyToken,async (req,res)=>{
+      const email = req.params.email
+      if(email !== req.decoded.email){
+        return res.status(403).send({message:'unauthorized access'})
+      }
+      const query = {email: email}
+      const user = await userCollection.findOne(query)
+      let seller = false;
+      if (user) {
+        admin = user?.role === 'seller';
+      }
+      res.send({admin})
+    })
     app.post('/user',async(req,res)=>{
       const user = req.body
       const query = {email:user.email}
@@ -87,14 +113,14 @@ async function run() {
       const product = req.body;
   
       try {
-          // Insert the product into the products collection
+         
           const result = await productCollection.insertOne(product);
   
-          // Update or create the category in the categories collection
+          
           const existingCategory = await categoryCollection.findOne({ category: product.category });
   
           if (existingCategory) {
-              // Increment the quantity by 1 if category exists
+              
               await categoryCollection.updateOne(
                   { _id: existingCategory._id },
                   { $inc: { quantity: 1 } }
@@ -284,9 +310,34 @@ app.get('/payments/:transactionid',async (req,res)=>{
     const result = await paymentCollection.find(filter).toArray();
     res.send(result);
 })
-app.get('/payments',verifyToken,async (req,res)=>{
-    const result = await paymentCollection.find().toArray();
-    res.send(result);
+
+
+  app.get('/payments', async (req, res) => {
+    const search = req.query.search || '';
+    const sortDirection = req.query.sort === 'desc' ? -1 : req.query.sort === 'asc' ? 1 : null;
+
+
+    try {
+        const query = {
+            $or: [
+                { "items.name": { $regex: search, $options: 'i' } },
+                { itemOwner: { $regex: search, $options: 'i' } },
+                { status: { $regex: search, $options: 'i' } }
+            ]
+        };
+
+        let sortObject = null;
+        if (sortDirection !== null) {
+            sortObject = { price: sortDirection };
+        }
+
+        const result = await paymentCollection.find(query).sort(sortObject).toArray();
+        res.send(result);
+    } catch (error) {
+        console.error('Error fetching products:', error);
+        res.status(500).send('Error fetching products');
+    }
+  }); 
 app.patch('/payments/:id', async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) };
@@ -296,7 +347,16 @@ app.patch('/payments/:id', async (req, res) => {
       const result = await paymentCollection.updateOne(filter, updateDoc);
       res.send(result);
   });
-})
+  app.patch('/users/:email', async (req, res) => {
+    const email = req.params.email;
+    const { role } = req.body;
+    const filter = { email: email };
+    const updateDoc = {
+        $set: { role: role },
+    };
+    const result = await userCollection.updateOne(filter, updateDoc);
+    res.send(result);
+});
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
