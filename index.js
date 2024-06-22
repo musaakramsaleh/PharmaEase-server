@@ -332,12 +332,24 @@ app.get('/payments/:transactionid',async (req,res)=>{
         }
 
         const result = await paymentCollection.find(query).sort(sortObject).toArray();
+        console.log(result)
         res.send(result);
+      
     } catch (error) {
         console.error('Error fetching products:', error);
         res.status(500).send('Error fetching products');
     }
   }); 
+  app.get('/payment',async (req,res)=>{
+    const result = await paymentCollection.find().toArray()
+    res.send(result)
+  })
+  app.get('/payment/:email',async (req,res)=>{
+    const email = req.params.email;
+      const query = { 'itemOwner.email': email };
+      const result = await paymentCollection.find(query).toArray();
+      res.send(result)
+  })
 app.patch('/payments/:id', async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) };
@@ -357,6 +369,7 @@ app.patch('/payments/:id', async (req, res) => {
     const result = await userCollection.updateOne(filter, updateDoc);
     res.send(result);
 });
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
