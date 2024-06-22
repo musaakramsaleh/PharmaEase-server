@@ -198,6 +198,11 @@ async function run() {
       const result = await categoryCollection.find().toArray();
       res.send(result);
     });
+    app.post('/category', async (req, res) => {
+      const data = req.body
+      const result = await categoryCollection.insertOne(data);
+      res.send(result);
+    });
     app.get('/products/:category', async (req, res) => {
       const category = req.params.category;
       const page = parseInt(req.query.page);
