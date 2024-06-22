@@ -203,6 +203,26 @@ async function run() {
       const result = await categoryCollection.insertOne(data);
       res.send(result);
     });
+    app.put('/category/:id', async (req, res) => {
+      const id = req.params.id;
+      const { image, category } = req.body; // Ensure this matches what you send from the frontend
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+          $set: { 
+              category: category, // Ensure this matches what you send from the frontend
+              image: image,
+          },
+      };
+      const result = await categoryCollection.updateOne(filter, updateDoc);
+      res.send(result);
+  });
+  app.delete('/category/:id', async (req, res) => {
+    const id = req.params.id;
+    const filter = { _id: new ObjectId(id) };
+    const result = await categoryCollection.deleteOne(filter);
+    res.send(result);
+});
+  
     app.get('/products/:category', async (req, res) => {
       const category = req.params.category;
       const page = parseInt(req.query.page);
