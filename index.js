@@ -37,6 +37,7 @@ async function run() {
     const categoryCollection = database.collection("category");
     const cartCollection = database.collection("cart");
     const paymentCollection = database.collection("payment");
+    const bannerCollection = database.collection("banner");
 
     app.post('/jwt',async(req,res)=>{
       const user = req.body
@@ -172,6 +173,10 @@ async function run() {
           res.status(500).send('Error fetching products');
       }
     });
+    app.get('/product',async(req,res)=>{
+      const result = await productCollection.find().toArray()
+      res.send(result)
+    })
     app.get('/product/:email',verifyToken, async (req, res) => {
       const email = req.params.email;
       const query = { 'owner.email': email };
@@ -203,6 +208,42 @@ async function run() {
       const result = await categoryCollection.insertOne(data);
       res.send(result);
     });
+    app.post('/banner', async (req, res) => {
+      const data = req.body
+      const result = await bannerCollection.insertOne(data);
+      res.send(result);
+    });
+    app.get('/banner', async (req, res) => {
+      const result = await bannerCollection.find().toArray();
+      res.send(result);
+    });
+    app.patch('/banner/:id', async (req, res) => {
+      const id = req.params.id; 
+      const { status } = req.body; 
+  
+      try {
+          
+          const filter = { _id: new ObjectId(id) };
+  
+          
+          const updateDoc = {
+              $set: { status: status }
+          };
+  
+          
+          const result = await bannerCollection.updateOne(filter, updateDoc);
+  
+     
+          if (result.matchedCount === 0) {
+              return res.status(404).json({ error: 'Banner not found' });
+          }
+  
+          res.status(200).json({ message: 'Banner status updated successfully' });
+      } catch (error) {
+          console.error('Error updating banner status:', error); 
+          res.status(500).json({ error: 'Internal server error' });
+      }
+  });
     app.put('/category/:id', async (req, res) => {
       const id = req.params.id;
       const { image, category } = req.body; // Ensure this matches what you send from the frontend
