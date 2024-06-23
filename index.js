@@ -6,7 +6,7 @@ require('dotenv').config();
 const port = process.env.PORT || 5000;
 const stripe = require("stripe")(process.env.STRIPE_KEY);
 const corsOption = {
-    origin: ['http://localhost:5173'],
+    origin: ['http://localhost:5173','https://pharmacy-15de3.web.app'],
     credentials: true,
     optionSuccessStatus: 200,
 };
@@ -30,7 +30,7 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    await client.connect();
+    
     const database = client.db("PharmacyDb");
     const userCollection = database.collection("users");
     const productCollection = database.collection("product");
@@ -412,7 +412,7 @@ app.get('/payments/:transactionid',async (req,res)=>{
   })
   app.get('/payment/:email',async (req,res)=>{
     const email = req.params.email;
-      const query = { 'itemOwner.email': email };
+      const query = { email: email };
       const result = await paymentCollection.find(query).toArray();
       res.send(result)
   })
@@ -437,7 +437,6 @@ app.patch('/payments/:id', async (req, res) => {
 });
 
     // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
 
   } catch (error) {
